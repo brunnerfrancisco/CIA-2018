@@ -191,42 +191,48 @@ estaEn([p, p5], [12,8]).
 --------------------------------------------------------------------------------
 */
 
-:-dynamic frontera/1, visitado/1, tupla/3.
+:-dynamic frontera/1, visitado/1, tupla/3, meta/1.
 %:-retractall(frontera(_)).
 %:-retractall(visitado(_)).
 
-buscarPlan(EstadoInicial,Metas,Destino,Plan,Costo):-
+buscar_plan(EstadoInicial,Metas,Destino,Plan,Costo):-
     agregarTuplasPalaMeta(Metas),
-    buscarHeuristica(EstadoInicial,Metas,Heuristica),
+    buscarHeuristica(EstadoInicial,Heuristica),
     assert(frontera(nodo(EstadoInicial,[],0,Heuristica))),
-    buscarAE(Metas,Destino,Plan,Costo).
+    buscarAE(Destino,Plan,Costo).
 
 agregarTuplasPalaMeta(Metas):-
+    agregarMetas(Metas),
     findall(
         tupla([FilaPala,ColumnaPala],[FilaMeta,ColumnaMeta],Distancia),
         (estaEn([p,_],[FilaPala,ColumnaPala]),
-        member([FilaMeta,ColumnaMeta],Metas),
+        meta([FilaMeta,ColumnaMeta]),
         Distancia is abs(FilaPala - FilaMeta) + abs(ColumnaPala - ColumnaMeta)),
         Tuplas
     ),
     agregarTuplas(Tuplas).
 
+agregarMetas([]):-!.
+agregarMetas([Meta|RestoMetas]):-
+    assertz(meta(Meta)),
+    agregarMetas(RestoMetas).
+
 agregarTuplas([]):-!.
 agregarTuplas([Tupla|RestoTuplas]):-
-    assertz(Tupla),write(Tupla),nl,
+    assertz(Tupla),
     agregarTuplas(RestoTuplas).
 
-buscarAE(Metas,Destino,Solucion,Costo):-
+buscarAE(Destino,Solucion,Costo):-
     seleccionar(nodo(Estado,Camino,Costo,_)),
-    esMeta(Estado,Metas),!,
+    esMeta(Estado),!,
     Estado=[Destino,_,_],
     reverse(Camino,Solucion).
-buscarAE(Metas,Destino,Solucion,Costo):-
+buscarAE(Destino,Solucion,Costo):-
     seleccionar(Nodo),
     retract(frontera(Nodo)),
-    generarVecinos(Nodo,Metas,Vecinos),
+    generarVecinos(Nodo,Vecinos),
     agregar(Vecinos),
-    buscarAE(Metas,Destino,Solucion,Costo).
+    buscarAE(Destino,Solucion,Costo).
 
 /*
     seleccionar(Nodo):
@@ -280,12 +286,12 @@ agregar([nodo(E,L,C,F)|RestoVecinos]):-
         dado un Nodo, genera todos aquellos vecinos con los que se relacione (con el operador opera)
         y calcula el costo del nuevo nodo
 */
-generarVecinos(nodo(EstadoActual,Camino,CostoViejo,Fn),Metas,Vecinos):-
+generarVecinos(nodo(EstadoActual,Camino,CostoViejo,Fn),Vecinos):-
     findall(nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva), 
         (
             sucesor(EstadoActual,EstadoNuevo,Operador,CostoActual),
             CostoNuevo is CostoActual + CostoViejo, 
-            buscarHeuristica(EstadoNuevo,Metas,HeuristicaNueva), 
+            buscarHeuristica(EstadoNuevo,HeuristicaNueva), 
             FNueva is CostoNuevo + HeuristicaNueva
         ), 
         Vecinos
@@ -302,17 +308,17 @@ buscarMenor(nodo(E,L,C,MenorF)):-
         MenorF > OtraF
     )),!.
 
-buscarHeuristica([[Fila,Columna],_,[[p,_]|_]],Metas,Heuristica):-!,
-    buscarMenorMeta([Fila,Columna],Metas,Heuristica).
+buscarHeuristica([[Fila,Columna],_,[[p,_]|_]],Heuristica):-!,
+    buscarMenorMeta([Fila,Columna],Heuristica).
 
-buscarHeuristica([[Fila,Columna],_,_],_,Heuristica):-
+buscarHeuristica([[Fila,Columna],_,_],Heuristica):-
     buscarMenorMetaPala([Fila,Columna],Heuristica).
 
-buscarMenorMeta([Fila,Columna],Metas,MenorHeuristica):-
-    member([FilaMeta,ColumnaMeta],Metas),
+buscarMenorMeta([Fila,Columna],MenorHeuristica):-
+    meta([FilaMeta,ColumnaMeta]),
     MenorHeuristica is abs(Fila - FilaMeta) + abs(Columna - ColumnaMeta),
     not((
-        member([FilMetaOtra,ColMetaOtra],Metas),
+        meta([FilMetaOtra,ColMetaOtra]),
         HeuristicaOtra is abs(Fila - FilMetaOtra) + abs(Columna - ColMetaOtra),
         MenorHeuristica > HeuristicaOtra
     )),!.
@@ -320,6 +326,7 @@ buscarMenorMeta([Fila,Columna],Metas,MenorHeuristica):-
 buscarMenorMetaPala([Fila,Columna],MenorHeuristica):-
     tupla([FilPala,ColPala],[_FilMeta,_ColMeta],DistanciaPalaMeta),
     MenorHeuristica is abs(Fila - FilPala) + abs(Columna - ColPala) + DistanciaPalaMeta,
+    %write(Fila),write(','),write(Columna),nl,write(FilPala),write(','),write(ColPala),nl,write(FilMeta),write(','),write(ColMeta),nl,write(MenorHeuristica),nl,nl,
     not((
         tupla([FilPalaOtra,ColPalaOtra],[_FilMetaOtra,_ColMetaOtra],DistanciaOtra),
         %FilPala \= FilPalaOtra, ColPala \= ColPalaOtra,
@@ -457,8 +464,8 @@ sucesor([[FilAct,ColAct],n,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],n,[[p,Nom
     eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
     RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].    
 sucesor([[FilAct,ColAct],o,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],o,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
-    FilSig is FilAct - 1,
-    ColSig is ColAct,
+    FilSig is FilAct,
+    ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],RestoLlaves),
@@ -467,7 +474,7 @@ sucesor([[FilAct,ColAct],o,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],o,[[p,Nom
     eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
     RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].
 sucesor([[FilAct,ColAct],s,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],s,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
-    FilSig is FilAct - 1,
+    FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,si],[FilSig,ColSig]),
@@ -477,8 +484,8 @@ sucesor([[FilAct,ColAct],s,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],s,[[p,Nom
     eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
     RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].
 sucesor([[FilAct,ColAct],e,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],e,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
-    FilSig is FilAct - 1,
-    ColSig is ColAct,
+    FilSig is FilAct,
+    ColSig is ColAct + 1,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],RestoLlaves),
@@ -506,8 +513,8 @@ sucesor([[FilAct,ColAct],n,Llaves],[[FilSig,ColSig],n,LlavesNuevo],avanzar,2):-
     eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
     LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
 sucesor([[FilAct,ColAct],o,Llaves],[[FilSig,ColSig],o,LlavesNuevo],avanzar,2):-
-    FilSig is FilAct - 1,
-    ColSig is ColAct,
+    FilSig is FilAct,
+    ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],Llaves),
@@ -516,7 +523,7 @@ sucesor([[FilAct,ColAct],o,Llaves],[[FilSig,ColSig],o,LlavesNuevo],avanzar,2):-
     eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
     LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
 sucesor([[FilAct,ColAct],s,Llaves],[[FilSig,ColSig],s,LlavesNuevo],avanzar,2):-
-    FilSig is FilAct - 1,
+    FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,si],[FilSig,ColSig]),
@@ -526,8 +533,8 @@ sucesor([[FilAct,ColAct],s,Llaves],[[FilSig,ColSig],s,LlavesNuevo],avanzar,2):-
     eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
     LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
 sucesor([[FilAct,ColAct],e,Llaves],[[FilSig,ColSig],e,LlavesNuevo],avanzar,2):-
-    FilSig is FilAct - 1,
-    ColSig is ColAct,
+    FilSig is FilAct,
+    ColSig is ColAct + 1,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],Llaves),
@@ -575,7 +582,7 @@ sucesor([Posicion,Dir,Posesiones],[Posicion,Dir,[[p,NombrePala]|Posesiones]],lev
     estaEn([p,NombrePala],Posicion),
     not(member([p,_],Posesiones)).
 
-esMeta([[Fila,Columna],_,[[p,_]|_]],Metas):-member([Fila,Columna],Metas).
+esMeta([[Fila,Columna],_,[[p,_]|_]]):-meta([Fila,Columna]).
 
 eliminar([l,_,_],[],[]):-!.
 eliminar([l,NombreLlave,Accesos],[[l,NombreLlave,Accesos]|Resto],Resto):-!.
