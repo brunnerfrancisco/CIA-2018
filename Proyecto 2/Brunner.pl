@@ -191,24 +191,40 @@ estaEn([p, p5], [12,8]).
 --------------------------------------------------------------------------------
 */
 
-:-dynamic frontera/1, visitado/1.
+:-dynamic frontera/1, visitado/1, tupla/3.
 %:-retractall(frontera(_)).
 %:-retractall(visitado(_)).
-%:-assert(frontera(nodo(a,[],0,30))).
 
 buscarPlan(EstadoInicial,Metas,Destino,Plan,Costo):-
+    agregarTuplasPalaMeta(Metas),
     buscarHeuristica(EstadoInicial,Metas,Heuristica),
     assert(frontera(nodo(EstadoInicial,[],0,Heuristica))),
     buscarAE(Metas,Destino,Plan,Costo).
 
+agregarTuplasPalaMeta(Metas):-
+    findall(
+        tupla([FilaPala,ColumnaPala],[FilaMeta,ColumnaMeta],Distancia),
+        (estaEn([p,_],[FilaPala,ColumnaPala]),
+        member([FilaMeta,ColumnaMeta],Metas),
+        Distancia is abs(FilaPala - FilaMeta) + abs(ColumnaPala - ColumnaMeta)),
+        Tuplas
+    ),
+    agregarTuplas(Tuplas).
+
+agregarTuplas([]):-!.
+agregarTuplas([Tupla|RestoTuplas]):-
+    assertz(Tupla),write(Tupla),nl,
+    agregarTuplas(RestoTuplas).
+
 buscarAE(Metas,Destino,Solucion,Costo):-
     seleccionar(nodo(Estado,Camino,Costo,_)),
-    esMeta(Estado,Metas,Destino),!,
+    esMeta(Estado,Metas),!,
+    Estado=[Destino,_,_],
     reverse(Camino,Solucion).
 buscarAE(Metas,Destino,Solucion,Costo):-
     seleccionar(Nodo),
     retract(frontera(Nodo)),
-    generarVecinos(Nodo,Vecinos),
+    generarVecinos(Nodo,Metas,Vecinos),
     agregar(Vecinos),
     buscarAE(Metas,Destino,Solucion,Costo).
 
@@ -218,10 +234,9 @@ buscarAE(Metas,Destino,Solucion,Costo):-
         con la estructura frontera(nodo(Estado,Camino,Costo)).
         agrega el nodo a visitados.
 */
-seleccionar(nodo(E,L,C,Fn)):-
-    frontera(nodo(_,_,_,Primero)),
-    buscarMenor(nodo(E,L,C,Fn),Primero),!,
-    assertz(visitado(nodo(E,L,C,Fn))).
+seleccionar(nodo(Estado,Camino,Costo,Fn)):-
+    buscarMenor(nodo(Estado,Camino,Costo,Fn)),!,
+    assertz(visitado(nodo(Estado,Camino,Costo,Fn))).
 
 /*
     agregar(ListaDeVecinos)
@@ -265,19 +280,53 @@ agregar([nodo(E,L,C,F)|RestoVecinos]):-
         dado un Nodo, genera todos aquellos vecinos con los que se relacione (con el operador opera)
         y calcula el costo del nuevo nodo
 */
-generarVecinos(nodo(Estado,Camino,CostoViejo,_),Metas,Vecinos):-
-    findall(nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva,Metas), 
-        (sucesor(Estado,EstadoNuevo,Operador,CostoActual),
-        CostoNuevo is CostoActual + CostoViejo, /*h(X,HNueva),*/ FNueva is CostoNuevo/** + HNueva*/), 
-        Vecinos).
+generarVecinos(nodo(EstadoActual,Camino,CostoViejo,Fn),Metas,Vecinos):-
+    findall(nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva), 
+        (
+            sucesor(EstadoActual,EstadoNuevo,Operador,CostoActual),
+            CostoNuevo is CostoActual + CostoViejo, 
+            buscarHeuristica(EstadoNuevo,Metas,HeuristicaNueva), 
+            FNueva is CostoNuevo + HeuristicaNueva
+        ), 
+        Vecinos
+    ),
+    write(nodo(EstadoActual,Camino,CostoViejo,Fn)),nl,nl.
+    %imprimirVecinos(Vecinos).
 
-buscarMenor(nodo(E,L,C,F),Menor):-
-    frontera(nodo(_,_,_,Fn)),
-    Fn < Menor,
-    buscarMenor(nodo(E,L,C,F),Fn),!.
 
-buscarMenor(E,L,C,Fn,Fn):-
-    frontera(nodo(E,L,C,Fn)).
+buscarMenor(nodo(E,L,C,MenorF)):-
+    frontera(nodo(E,L,C,MenorF)),
+    not((
+        frontera(nodo(_OtraE,_OtraL,_OtraC,OtraF)),
+        %E\=OtraE,L\=OtraL,C\=OtraC,
+        MenorF > OtraF
+    )),!.
+
+buscarHeuristica([[Fila,Columna],_,[[p,_]|_]],Metas,Heuristica):-!,
+    buscarMenorMeta([Fila,Columna],Metas,Heuristica).
+
+buscarHeuristica([[Fila,Columna],_,_],_,Heuristica):-
+    buscarMenorMetaPala([Fila,Columna],Heuristica).
+
+buscarMenorMeta([Fila,Columna],Metas,MenorHeuristica):-
+    member([FilaMeta,ColumnaMeta],Metas),
+    MenorHeuristica is abs(Fila - FilaMeta) + abs(Columna - ColumnaMeta),
+    not((
+        member([FilMetaOtra,ColMetaOtra],Metas),
+        HeuristicaOtra is abs(Fila - FilMetaOtra) + abs(Columna - ColMetaOtra),
+        MenorHeuristica > HeuristicaOtra
+    )),!.
+
+buscarMenorMetaPala([Fila,Columna],MenorHeuristica):-
+    tupla([FilPala,ColPala],[_FilMeta,_ColMeta],DistanciaPalaMeta),
+    MenorHeuristica is abs(Fila - FilPala) + abs(Columna - ColPala) + DistanciaPalaMeta,
+    not((
+        tupla([FilPalaOtra,ColPalaOtra],[_FilMetaOtra,_ColMetaOtra],DistanciaOtra),
+        %FilPala \= FilPalaOtra, ColPala \= ColPalaOtra,
+        %FilMeta \= FilMetaOtra, ColMeta \= ColMetaOtra,
+        HeuristicaOtra is abs(Fila - FilPalaOtra) + abs(Columna - ColPalaOtra) + DistanciaOtra,
+        MenorHeuristica > HeuristicaOtra
+    )),!.
 
 /*
     avanzar - condiciones
@@ -285,22 +334,22 @@ buscarMenor(E,L,C,Fn,Fn):-
         + la posicion siguiente es firme
         + no hay refugio en la posicion siguiente
 */
-sucesor([[FilAct,ColAct],n,Poseciones],[[FilSig,ColSig],n,Poseciones],avanzar,1):-
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,1):-
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
     \+estaEn([r,_,_],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],o,Poseciones],[[FilSig,ColSig],o,Poseciones],avanzar,1):-
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,1):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
     \+estaEn([r,_,_],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],s,Poseciones],[[FilSig,ColSig],s,Poseciones],avanzar,1):-
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,1):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
     \+estaEn([r,_,_],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,1):-
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,1):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],firme),
@@ -312,22 +361,22 @@ sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,1)
         + la posicion siguiente es resbaladiza
         + no hay refugio en la posicion siguiente
 */
-sucesor([[FilAct,ColAct],n,Poseciones],[[FilSig,ColSig],n,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,2):-
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
     \+estaEn([r,_,_],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],o,Poseciones],[[FilSig,ColSig],o,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],resbaladizo),
     \+estaEn([r,_,_],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],s,Poseciones],[[FilSig,ColSig],s,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
     \+estaEn([r,_,_],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],resbaladizo),
@@ -340,22 +389,22 @@ sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,2)
         + hay refugio en la posicion siguiente
             + que no requiere llave
 */
-sucesor([[FilAct,ColAct],n,Poseciones],[[FilSig,ColSig],n,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,2):-
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,no],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],o,Poseciones],[[FilSig,ColSig],o,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,no],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],s,Poseciones],[[FilSig,ColSig],s,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
     estaEn([r,_,no],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],resbaladizo),
@@ -368,22 +417,22 @@ sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,2)
         + hay refugio en la posicion siguiente
             + que no requiere llave
 */
-sucesor([[FilAct,ColAct],n,Poseciones],[[FilSig,ColSig],n,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,2):-
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
     estaEn([r,_,no],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],o,Poseciones],[[FilSig,ColSig],o,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],resbaladizo),
     estaEn([r,_,no],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],s,Poseciones],[[FilSig,ColSig],s,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
     estaEn([r,_,no],[FilSig,ColSig]).
-sucesor([[FilAct,ColAct],e,Poseciones],[[FilSig,ColSig],e,Poseciones],avanzar,2):-
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],resbaladizo),
@@ -487,31 +536,53 @@ sucesor([[FilAct,ColAct],e,Llaves],[[FilSig,ColSig],e,LlavesNuevo],avanzar,2):-
     eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
     LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
 
-sucesor([Posicion,n,Poseciones],CostoActual,[Posicion,o,Poseciones],girar(o),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,n,Poseciones],CostoActual,[Posicion,s,Poseciones],girar(s),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 2.
-sucesor([Posicion,n,Poseciones],CostoActual,[Posicion,e,Poseciones],girar(e),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,o,Poseciones],CostoActual,[Posicion,s,Poseciones],girar(s),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,o,Poseciones],CostoActual,[Posicion,e,Poseciones],girar(e),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 2.
-sucesor([Posicion,o,Poseciones],CostoActual,[Posicion,n,Poseciones],girar(n),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,s,Poseciones],CostoActual,[Posicion,e,Poseciones],girar(e),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,s,Poseciones],CostoActual,[Posicion,n,Poseciones],girar(n),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 2.
-sucesor([Posicion,s,Poseciones],CostoActual,[Posicion,o,Poseciones],girar(o),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,e,Poseciones],CostoActual,[Posicion,n,Poseciones],girar(n),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
-sucesor([Posicion,e,Poseciones],CostoActual,[Posicion,o,Poseciones],girar(o),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 2.
-sucesor([Posicion,e,Poseciones],CostoActual,[Posicion,s,Poseciones],girar(s),CostoSiguiente):-
-    CostoSiguiente is CostoActual + 1.
+sucesor([Posicion,n,Posesiones],[Posicion,o,Posesiones],girar(o),1).
+
+sucesor([Posicion,n,Posesiones],[Posicion,s,Posesiones],girar(s),2).
+
+sucesor([Posicion,n,Posesiones],[Posicion,e,Posesiones],girar(e),1).
+
+sucesor([Posicion,o,Posesiones],[Posicion,s,Posesiones],girar(s),1).
+
+sucesor([Posicion,o,Posesiones],[Posicion,e,Posesiones],girar(e),2).
+
+sucesor([Posicion,o,Posesiones],[Posicion,n,Posesiones],girar(n),1).
+
+sucesor([Posicion,s,Posesiones],[Posicion,e,Posesiones],girar(e),1).
+
+sucesor([Posicion,s,Posesiones],[Posicion,n,Posesiones],girar(n),2).
+
+sucesor([Posicion,s,Posesiones],[Posicion,o,Posesiones],girar(o),1).
+
+sucesor([Posicion,e,Posesiones],[Posicion,n,Posesiones],girar(n),1).
+
+sucesor([Posicion,e,Posesiones],[Posicion,o,Posesiones],girar(o),2).
+
+sucesor([Posicion,e,Posesiones],[Posicion,s,Posesiones],girar(s),1).
 
 
+sucesor([Posicion,Dir,[[p,NombreP]|Posesiones]],[Posicion,Dir,[[p,NombreP],[l,NombreL,Accesos]|Posesiones]],
+    levantar_llave([l,NombreL,Accesos]),0):-
+    estaEn([l,NombreL,Accesos],Posicion),
+    not(member([l,NombreL,_],Posesiones)).
 
-esMeta([[Fila,Columna],_,[[p,_]|_]],Metas,[Fila,Columna]):-member([Fila,Columna],Metas).
+sucesor([Posicion,Dir,Posesiones],[Posicion,Dir,[[l,NombreL,Accesos]|Posesiones]],
+    levantar_llave([l,NombreL,Accesos]),0):-
+    estaEn([l,NombreL,Accesos],Posicion),
+    not(member([l,NombreL,_],Posesiones)).
+
+sucesor([Posicion,Dir,Posesiones],[Posicion,Dir,[[p,NombrePala]|Posesiones]],levantar_pala([p,NombrePala]),1):-
+    estaEn([p,NombrePala],Posicion),
+    not(member([p,_],Posesiones)).
+
+esMeta([[Fila,Columna],_,[[p,_]|_]],Metas):-member([Fila,Columna],Metas).
+
+eliminar([l,_,_],[],[]):-!.
+eliminar([l,NombreLlave,Accesos],[[l,NombreLlave,Accesos]|Resto],Resto):-!.
+eliminar([l,NombreLlave,Accesos],[[l,NombreLlave2,Accesos2]|Resto],RestoAux):-
+    NombreLlave\=NombreLlave2,
+    Accesos\=Accesos2,
+    eliminar([l,NombreLlave,Accesos],Resto,RestoAux).
+
+imprimirVecinos([]):-!,nl.
+imprimirVecinos([E|R]):-write(E),nl,imprimirVecinos(R).
