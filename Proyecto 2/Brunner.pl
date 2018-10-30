@@ -297,7 +297,7 @@ generarVecinos(nodo(EstadoActual,Camino,CostoViejo,_Fn),Vecinos):-
         ), 
         Vecinos
     ).
-    %write(nodo(EstadoActual,Camino,CostoViejo,Fn)),nl,nl.
+    %write(Vecinos),nl,nl.
     %imprimirVecinos(Vecinos).
 
 
@@ -346,21 +346,25 @@ sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,1)
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,1):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,1):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,1):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 
 /*
@@ -373,21 +377,25 @@ sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,2)
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 
 /*
@@ -401,21 +409,25 @@ sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,2)
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
-    celda([FilSig,ColSig],resbaladizo),
+    celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 
 /*
@@ -429,21 +441,25 @@ sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],avanzar,2)
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,no],[FilSig,ColSig]).
 
 /*
@@ -458,6 +474,7 @@ sucesor([[FilAct,ColAct],n,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],n,[[p,Nom
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],RestoLlaves),
     AccesosL > 0,
@@ -468,6 +485,7 @@ sucesor([[FilAct,ColAct],o,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],o,[[p,Nom
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],RestoLlaves),
     AccesosL > 0,
@@ -478,6 +496,7 @@ sucesor([[FilAct,ColAct],s,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],s,[[p,Nom
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],RestoLlaves),
     AccesosL > 0,
@@ -488,6 +507,7 @@ sucesor([[FilAct,ColAct],e,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],e,[[p,Nom
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],RestoLlaves),
     AccesosL > 0,
@@ -507,6 +527,7 @@ sucesor([[FilAct,ColAct],n,Llaves],[[FilSig,ColSig],n,LlavesNuevo],avanzar,2):-
     FilSig is FilAct - 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],Llaves),
     AccesosL > 0,
@@ -517,6 +538,7 @@ sucesor([[FilAct,ColAct],o,Llaves],[[FilSig,ColSig],o,LlavesNuevo],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct - 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],Llaves),
     AccesosL > 0,
@@ -527,6 +549,7 @@ sucesor([[FilAct,ColAct],s,Llaves],[[FilSig,ColSig],s,LlavesNuevo],avanzar,2):-
     FilSig is FilAct + 1,
     ColSig is ColAct,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],Llaves),
     AccesosL > 0,
@@ -537,6 +560,7 @@ sucesor([[FilAct,ColAct],e,Llaves],[[FilSig,ColSig],e,LlavesNuevo],avanzar,2):-
     FilSig is FilAct,
     ColSig is ColAct + 1,
     celda([FilSig,ColSig],firme),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
     estaEn([r,_,si],[FilSig,ColSig]),
     member([l,NombreL,AccesosL],Llaves),
     AccesosL > 0,
@@ -568,6 +592,9 @@ sucesor([Posicion,e,Posesiones],[Posicion,o,Posesiones],girar(o),2).
 
 sucesor([Posicion,e,Posesiones],[Posicion,s,Posesiones],girar(s),1).
 
+/*
+    saltar_lava
+*/
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_lava,3):-
     FilSig is FilAct + 2,
     ColSig is ColAct,
@@ -617,6 +644,9 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_lav
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 
+/*
+    saltar_obstaculo con suelo destino firme
+*/
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_obstaculo,4):-
     FilSig is FilAct + 2,
     ColSig is ColAct,
@@ -658,6 +688,9 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_obs
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 
+/*
+    saltar_obstaculo con suelo destino resbaladizo
+*/
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_obstaculo,5):-
     FilSig is FilAct + 2,
     ColSig is ColAct,
@@ -699,16 +732,25 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_obs
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 
+/*
+    levantar_llave con pala
+*/
 sucesor([Posicion,Dir,[[p,NombreP]|Posesiones]],[Posicion,Dir,[[p,NombreP],[l,NombreL,Accesos]|Posesiones]],
     levantar_llave([l,NombreL,Accesos]),0):-
     estaEn([l,NombreL,Accesos],Posicion),
     not(member([l,NombreL,_],Posesiones)).
 
+/*
+    levantar_llave sin pala
+*/
 sucesor([Posicion,Dir,Posesiones],[Posicion,Dir,[[l,NombreL,Accesos]|Posesiones]],
     levantar_llave([l,NombreL,Accesos]),0):-
     estaEn([l,NombreL,Accesos],Posicion),
     not(member([l,NombreL,_],Posesiones)).
 
+/*
+    levantar_pala
+*/
 sucesor([Posicion,Dir,Posesiones],[Posicion,Dir,[[p,NombrePala]|Posesiones]],levantar_pala([p,NombrePala]),1):-
     estaEn([p,NombrePala],Posicion),
     not(member([p,_],Posesiones)).
