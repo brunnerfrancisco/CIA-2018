@@ -192,6 +192,7 @@ estaEn([p, p5], [12,8]).
 */
 
 :-dynamic frontera/1, visitado/1, tupla/3, meta/1.
+:-set_prolog_flag(answer_write_options,[max_depth(0)]).
 %:-retractall(frontera(_)).
 %:-retractall(visitado(_)).
 
@@ -286,7 +287,7 @@ agregar([nodo(E,L,C,F)|RestoVecinos]):-
         dado un Nodo, genera todos aquellos vecinos con los que se relacione (con el operador opera)
         y calcula el costo del nuevo nodo
 */
-generarVecinos(nodo(EstadoActual,Camino,CostoViejo,Fn),Vecinos):-
+generarVecinos(nodo(EstadoActual,Camino,CostoViejo,_Fn),Vecinos):-
     findall(nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva), 
         (
             sucesor(EstadoActual,EstadoNuevo,Operador,CostoActual),
@@ -295,8 +296,8 @@ generarVecinos(nodo(EstadoActual,Camino,CostoViejo,Fn),Vecinos):-
             FNueva is CostoNuevo + HeuristicaNueva
         ), 
         Vecinos
-    ),
-    write(nodo(EstadoActual,Camino,CostoViejo,Fn)),nl,nl.
+    ).
+    %write(nodo(EstadoActual,Camino,CostoViejo,Fn)),nl,nl.
     %imprimirVecinos(Vecinos).
 
 
@@ -567,6 +568,136 @@ sucesor([Posicion,e,Posesiones],[Posicion,o,Posesiones],girar(o),2).
 
 sucesor([Posicion,e,Posesiones],[Posicion,s,Posesiones],girar(s),1).
 
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_lava,3):-
+    FilSig is FilAct + 2,
+    ColSig is ColAct,
+    FilInt is FilAct + 1,
+    ColInt is ColAct,
+    celda([FilInt,ColInt],lava),
+    celda([FilAct,ColAct],firme),
+    celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilSig,ColSig]),
+    \+estaEn([l,_,_],[FilSig,ColSig]),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_lava,3):-
+    FilSig is FilAct,
+    ColSig is ColAct - 2,
+    FilInt is FilAct,
+    ColInt is ColAct - 1,
+    celda([FilInt,ColInt],lava),
+    celda([FilAct,ColAct],firme),
+    celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilSig,ColSig]),
+    \+estaEn([l,_,_],[FilSig,ColSig]),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_lava,3):-
+    FilSig is FilAct - 2,
+    ColSig is ColAct,
+    FilInt is FilAct - 1,
+    ColInt is ColAct,
+    celda([FilInt,ColInt],lava),
+    celda([FilAct,ColAct],firme),
+    celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilSig,ColSig]),
+    \+estaEn([l,_,_],[FilSig,ColSig]),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_lava,3):-
+    FilSig is FilAct,
+    ColSig is ColAct + 2,
+    FilInt is FilAct,
+    ColInt is ColAct + 1,
+    celda([FilInt,ColInt],lava),
+    celda([FilAct,ColAct],firme),
+    celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilSig,ColSig]),
+    \+estaEn([l,_,_],[FilSig,ColSig]),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_obstaculo,4):-
+    FilSig is FilAct + 2,
+    ColSig is ColAct,
+    FilInt is FilAct + 1,
+    ColInt is ColAct,
+    celda([FilSig,ColSig],firme),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_obstaculo,4):-
+    FilSig is FilAct,
+    ColSig is ColAct - 2,
+    FilInt is FilAct,
+    ColInt is ColAct - 1,
+    celda([FilSig,ColSig],firme),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_obstaculo,4):-
+    FilSig is FilAct - 2,
+    ColSig is ColAct,
+    FilInt is FilAct - 1,
+    ColInt is ColAct,
+    celda([FilSig,ColSig],firme),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_obstaculo,4):-
+    FilSig is FilAct,
+    ColSig is ColAct + 2,
+    FilInt is FilAct,
+    ColInt is ColAct + 1,
+    celda([FilSig,ColSig],firme),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+
+sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_obstaculo,5):-
+    FilSig is FilAct + 2,
+    ColSig is ColAct,
+    FilInt is FilAct + 1,
+    ColInt is ColAct,
+    celda([FilSig,ColSig],resbaladizo),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_obstaculo,5):-
+    FilSig is FilAct,
+    ColSig is ColAct - 2,
+    FilInt is FilAct,
+    ColInt is ColAct - 1,
+    celda([FilSig,ColSig],resbaladizo),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_obstaculo,5):-
+    FilSig is FilAct - 2,
+    ColSig is ColAct,
+    FilInt is FilAct - 1,
+    ColInt is ColAct,
+    celda([FilSig,ColSig],resbaladizo),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
+sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_obstaculo,5):-
+    FilSig is FilAct,
+    ColSig is ColAct + 2,
+    FilInt is FilAct,
+    ColInt is ColAct + 1,
+    celda([FilSig,ColSig],resbaladizo),
+    estaEn([o,_,AlturaO],[FilInt,ColInt]),
+    AlturaO < 5,
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    \+estaEn([r,_,_],[FilSig,ColSig]).
 
 sucesor([Posicion,Dir,[[p,NombreP]|Posesiones]],[Posicion,Dir,[[p,NombreP],[l,NombreL,Accesos]|Posesiones]],
     levantar_llave([l,NombreL,Accesos]),0):-
