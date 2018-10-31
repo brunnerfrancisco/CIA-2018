@@ -191,16 +191,30 @@ estaEn([p, p5], [12,8]).
 --------------------------------------------------------------------------------
 */
 
+/*
+    Defino los predicados dinamicos a ser utilizados
+*/
 :-dynamic frontera/1, visitado/1, tupla/3, meta/1.
+
+/*
+    Activo este flag para que a la hora de hacer las consultas por la consola
+        muestre TODOS los elementos de las listas
+*/
 :-set_prolog_flag(answer_write_options,[max_depth(0)]).
-%:-retractall(frontera(_)).
-%:-retractall(visitado(_)).
 
 buscar_plan(EstadoInicial,Metas,Destino,Plan,Costo):-
+    retractall(frontera(_)),
+    retractall(visitado(_)),
+    retractall(tupla(_,_,_)),
+    retractall(meta(_)),
     agregarTuplasPalaMeta(Metas),
     buscarHeuristica(EstadoInicial,Heuristica),
     assert(frontera(nodo(EstadoInicial,[],0,Heuristica))),
-    buscarAE(Destino,Plan,Costo).
+    buscarAE(Destino,Plan,Costo),!.
+
+buscar_plan(_,_,_,_,_):-
+    nl,write('No es posible hallar un plan'),nl,
+    fail.
 
 agregarTuplasPalaMeta(Metas):-
     agregarMetas(Metas),
@@ -215,7 +229,16 @@ agregarTuplasPalaMeta(Metas):-
 
 agregarMetas([]):-!.
 agregarMetas([Meta|RestoMetas]):-
+    \+celda(Meta,firme),
+    \+estaEn([o,_,_],Meta),!,
     assertz(meta(Meta)),
+    agregarMetas(RestoMetas).
+agregarMetas([Meta|RestoMetas]):-
+    celda(Meta,resbaladizo),
+    \+estaEn([o,_,_],Meta),!,
+    assertz(meta(Meta)),
+    agregarMetas(RestoMetas).
+agregarMetas([_|RestoMetas]):-
     agregarMetas(RestoMetas).
 
 agregarTuplas([]):-!.
@@ -230,6 +253,7 @@ buscarAE(Destino,Solucion,Costo):-
     reverse(Camino,Solucion).
 buscarAE(Destino,Solucion,Costo):-
     seleccionar(Nodo),
+    assertz(visitado(Nodo)),
     retract(frontera(Nodo)),
     generarVecinos(Nodo,Vecinos),
     agregar(Vecinos),
@@ -242,8 +266,7 @@ buscarAE(Destino,Solucion,Costo):-
         agrega el nodo a visitados.
 */
 seleccionar(nodo(Estado,Camino,Costo,Fn)):-
-    buscarMenor(nodo(Estado,Camino,Costo,Fn)),!,
-    assertz(visitado(nodo(Estado,Camino,Costo,Fn))).
+    buscarMenor(nodo(Estado,Camino,Costo,Fn)),!.
 
 /*
     agregar(ListaDeVecinos)
@@ -282,6 +305,7 @@ agregar([nodo(E,_,C,_)|RestoVecinos]):-
 agregar([nodo(E,L,C,F)|RestoVecinos]):-
     assertz(frontera(nodo(E,L,C,F))),
     agregar(RestoVecinos).
+
 /*
     generarVecinos(nodo(Estado,Camino,Costo),Vecinos)
         dado un Nodo, genera todos aquellos vecinos con los que se relacione (con el operador opera)
@@ -297,15 +321,11 @@ generarVecinos(nodo(EstadoActual,Camino,CostoViejo,_Fn),Vecinos):-
         ), 
         Vecinos
     ).
-    %write(Vecinos),nl,nl.
-    %imprimirVecinos(Vecinos).
-
 
 buscarMenor(nodo(E,L,C,MenorF)):-
     frontera(nodo(E,L,C,MenorF)),
     not((
         frontera(nodo(_OtraE,_OtraL,_OtraC,OtraF)),
-        %E\=OtraE,L\=OtraL,C\=OtraC,
         MenorF > OtraF
     )),!.
 
@@ -327,11 +347,8 @@ buscarMenorMeta([Fila,Columna],MenorHeuristica):-
 buscarMenorMetaPala([Fila,Columna],MenorHeuristica):-
     tupla([FilPala,ColPala],[_FilMeta,_ColMeta],DistanciaPalaMeta),
     MenorHeuristica is abs(Fila - FilPala) + abs(Columna - ColPala) + DistanciaPalaMeta,
-    %write(Fila),write(','),write(Columna),nl,write(FilPala),write(','),write(ColPala),nl,write(FilMeta),write(','),write(ColMeta),nl,write(MenorHeuristica),nl,nl,
     not((
         tupla([FilPalaOtra,ColPalaOtra],[_FilMetaOtra,_ColMetaOtra],DistanciaOtra),
-        %FilPala \= FilPalaOtra, ColPala \= ColPalaOtra,
-        %FilMeta \= FilMetaOtra, ColMeta \= ColMetaOtra,
         HeuristicaOtra is abs(Fila - FilPalaOtra) + abs(Columna - ColPalaOtra) + DistanciaOtra,
         MenorHeuristica > HeuristicaOtra
     )),!.
@@ -514,6 +531,59 @@ sucesor([[FilAct,ColAct],e,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],e,[[p,Nom
     AccesosLNuevo is AccesosL - 1,
     eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
     RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].
+/**/
+/*
+    avanzar - condiciones
+        + existe la posicion siguiente
+        + la posicion siguiente es resbaladiza
+        + hay refugio en la posicion siguiente
+            + que requiere llave
+            + tiene pala
+*/
+sucesor([[FilAct,ColAct],n,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],n,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
+    FilSig is FilAct - 1,
+    ColSig is ColAct,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],RestoLlaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
+    RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].    
+sucesor([[FilAct,ColAct],o,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],o,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
+    FilSig is FilAct,
+    ColSig is ColAct - 1,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],RestoLlaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
+    RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].
+sucesor([[FilAct,ColAct],s,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],s,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
+    FilSig is FilAct + 1,
+    ColSig is ColAct,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],RestoLlaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
+    RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].
+sucesor([[FilAct,ColAct],e,[[p,NombreP]|RestoLlaves]],[[FilSig,ColSig],e,[[p,NombreP]|RestoLlavesNuevo]],avanzar,2):-
+    FilSig is FilAct,
+    ColSig is ColAct + 1,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],RestoLlaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],RestoLlaves,RestoLlavesAux),
+    RestoLlavesNuevo = [[l,NombreL,AccesosLNuevo]|RestoLlavesAux].
 
 /*
     avanzar - condiciones
@@ -568,6 +638,59 @@ sucesor([[FilAct,ColAct],e,Llaves],[[FilSig,ColSig],e,LlavesNuevo],avanzar,2):-
     eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
     LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
 
+/*
+    avanzar - condiciones
+        + existe la posicion siguiente
+        + la posicion siguiente es resbaladiza
+        + hay refugio en la posicion siguiente
+            + que requiere llave
+            + no tiene pala
+*/
+sucesor([[FilAct,ColAct],n,Llaves],[[FilSig,ColSig],n,LlavesNuevo],avanzar,2):-
+    FilSig is FilAct - 1,
+    ColSig is ColAct,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],Llaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
+    LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
+sucesor([[FilAct,ColAct],o,Llaves],[[FilSig,ColSig],o,LlavesNuevo],avanzar,2):-
+    FilSig is FilAct,
+    ColSig is ColAct - 1,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],Llaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
+    LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
+sucesor([[FilAct,ColAct],s,Llaves],[[FilSig,ColSig],s,LlavesNuevo],avanzar,2):-
+    FilSig is FilAct + 1,
+    ColSig is ColAct,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],Llaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
+    LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
+sucesor([[FilAct,ColAct],e,Llaves],[[FilSig,ColSig],e,LlavesNuevo],avanzar,2):-
+    FilSig is FilAct,
+    ColSig is ColAct + 1,
+    celda([FilSig,ColSig],resbaladizo),
+    \+estaEn([o,_,_],[FilSig,ColSig]),
+    estaEn([r,_,si],[FilSig,ColSig]),
+    member([l,NombreL,AccesosL],Llaves),
+    AccesosL > 0,
+    AccesosLNuevo is AccesosL - 1,
+    eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
+    LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
+
 sucesor([Posicion,n,Posesiones],[Posicion,o,Posesiones],girar(o),1).
 
 sucesor([Posicion,n,Posesiones],[Posicion,s,Posesiones],girar(s),2).
@@ -596,9 +719,9 @@ sucesor([Posicion,e,Posesiones],[Posicion,s,Posesiones],girar(s),1).
     saltar_lava
 */
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_lava,3):-
-    FilSig is FilAct + 2,
+    FilSig is FilAct - 2,
     ColSig is ColAct,
-    FilInt is FilAct + 1,
+    FilInt is FilAct - 1,
     ColInt is ColAct,
     celda([FilInt,ColInt],lava),
     celda([FilAct,ColAct],firme),
@@ -620,9 +743,9 @@ sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_lav
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_lava,3):-
-    FilSig is FilAct - 2,
+    FilSig is FilAct + 2,
     ColSig is ColAct,
-    FilInt is FilAct - 1,
+    FilInt is FilAct + 1,
     ColInt is ColAct,
     celda([FilInt,ColInt],lava),
     celda([FilAct,ColAct],firme),
@@ -648,9 +771,9 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_lav
     saltar_obstaculo con suelo destino firme
 */
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_obstaculo,4):-
-    FilSig is FilAct + 2,
+    FilSig is FilAct - 2,
     ColSig is ColAct,
-    FilInt is FilAct + 1,
+    FilInt is FilAct - 1,
     ColInt is ColAct,
     celda([FilSig,ColSig],firme),
     estaEn([o,_,AlturaO],[FilInt,ColInt]),
@@ -668,9 +791,9 @@ sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_obs
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_obstaculo,4):-
-    FilSig is FilAct - 2,
+    FilSig is FilAct + 2,
     ColSig is ColAct,
-    FilInt is FilAct - 1,
+    FilInt is FilAct + 1,
     ColInt is ColAct,
     celda([FilSig,ColSig],firme),
     estaEn([o,_,AlturaO],[FilInt,ColInt]),
@@ -692,9 +815,9 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_obs
     saltar_obstaculo con suelo destino resbaladizo
 */
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_obstaculo,5):-
-    FilSig is FilAct + 2,
+    FilSig is FilAct - 2,
     ColSig is ColAct,
-    FilInt is FilAct + 1,
+    FilInt is FilAct - 1,
     ColInt is ColAct,
     celda([FilSig,ColSig],resbaladizo),
     estaEn([o,_,AlturaO],[FilInt,ColInt]),
@@ -712,9 +835,9 @@ sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_obs
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_obstaculo,5):-
-    FilSig is FilAct - 2,
+    FilSig is FilAct + 2,
     ColSig is ColAct,
-    FilInt is FilAct - 1,
+    FilInt is FilAct + 1,
     ColInt is ColAct,
     celda([FilSig,ColSig],resbaladizo),
     estaEn([o,_,AlturaO],[FilInt,ColInt]),
