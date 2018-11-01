@@ -1,5 +1,6 @@
 :-consult('CIA2018-Proyecto2-BusquedaInformada-Prolog/islaExample.pl').
 :-consult('sucesores.pl').
+%:-consult('mapa_1.pl').
 /*
     Defino los predicados dinamicos a ser utilizados
 */
@@ -11,6 +12,15 @@
 */
 :-set_prolog_flag(answer_write_options,[max_depth(0)]).
 
+/*************************************************************************************************************/
+
+/*
+    buscar_plan(+EstadoInicial,+Metas,-Destino,-Plan,-Costo)
+        busca una secuencia de operadores tal que aplicados al estado inicial,
+        llega a un estado donde la posicion es una meta (Destino) 
+        y el costo asociado a esa secuencia de operadores
+        La busqueda se realiza aplicando el metodo A*
+*/
 buscar_plan(EstadoInicial,Metas,Destino,Plan,Costo):-
     retractall(frontera(_)),
     retractall(visitado(_)),
@@ -20,41 +30,13 @@ buscar_plan(EstadoInicial,Metas,Destino,Plan,Costo):-
     buscarHeuristica(EstadoInicial,Heuristica),
     assert(frontera(nodo(EstadoInicial,[],0,Heuristica))),
     buscarAE(Destino,Plan,Costo),!.
-
 buscar_plan(_,_,_,_,_):-
     nl,write('No es posible hallar un plan'),nl,
     fail.
 
-agregarTuplasPalaMeta(Metas):-
-    agregarMetas(Metas),
-    findall(
-        tupla([FilaPala,ColumnaPala],[FilaMeta,ColumnaMeta],Distancia),
-        (estaEn([p,_],[FilaPala,ColumnaPala]),
-        meta([FilaMeta,ColumnaMeta]),
-        Distancia is abs(FilaPala - FilaMeta) + abs(ColumnaPala - ColumnaMeta)),
-        Tuplas
-    ),
-    agregarTuplas(Tuplas).
+/*
 
-agregarMetas([]):-!.
-agregarMetas([Meta|RestoMetas]):-
-    celda(Meta,firme),
-    \+estaEn([o,_,_],Meta),!,
-    assertz(meta(Meta)),
-    agregarMetas(RestoMetas).
-agregarMetas([Meta|RestoMetas]):-
-    celda(Meta,resbaladizo),
-    \+estaEn([o,_,_],Meta),!,
-    assertz(meta(Meta)),
-    agregarMetas(RestoMetas).
-agregarMetas([_|RestoMetas]):-
-    agregarMetas(RestoMetas).
-
-agregarTuplas([]):-!.
-agregarTuplas([Tupla|RestoTuplas]):-
-    assertz(Tupla),
-    agregarTuplas(RestoTuplas).
-
+*/
 buscarAE(Destino,Solucion,Costo):-
     seleccionar(nodo(Estado,Camino,Costo,_)),
     esMeta(Estado),!,
@@ -62,6 +44,7 @@ buscarAE(Destino,Solucion,Costo):-
     reverse(Camino,Solucion).
 buscarAE(Destino,Solucion,Costo):-
     seleccionar(Nodo),
+    write(Nodo),nl,nl,
     assertz(visitado(Nodo)),
     retract(frontera(Nodo)),
     generarVecinos(Nodo,Vecinos),
@@ -70,14 +53,18 @@ buscarAE(Destino,Solucion,Costo):-
 
 /*
     seleccionar(Nodo):
-        selecciona el primer nodo de la frontera, es decir busca la primera unificacion con algun hecho 
-        con la estructura frontera(nodo(Estado,Camino,Costo)).
+        selecciona un nodo de la frontera, es decir busca el Nodo cuya F sea menor
+        entre los hechos dinamicos correspondientes a la frontera
         agrega el nodo a visitados.
 */
 seleccionar(nodo(Estado,Camino,Costo,Fn)):-
-    buscarMenor(nodo(Estado,Camino,Costo,Fn)),!.
+    buscarMenorNodoEnFrontera(nodo(Estado,Camino,Costo,Fn)),!.
 
-buscarMenor(nodo(E,L,C,MenorF)):-
+/*
+    buscarMenorNodoEnFrontera(-Nodo):
+        se encarga de buscar en la frontera el Nodo cuya F sea menor de todos
+*/
+buscarMenorNodoEnFrontera(nodo(E,L,C,MenorF)):-
     frontera(nodo(E,L,C,MenorF)),
     not((
         frontera(nodo(_OtraE,_OtraL,_OtraC,OtraF)),
@@ -91,10 +78,10 @@ buscarMenor(nodo(E,L,C,MenorF)):-
         Control De Ciclos:
             - si ya esta en la frontera: 
                 + si tiene un costo peor -> lo reemplazo
-                + si notiene un costo peor -> lo descarto
+                + si no tiene un costo peor -> lo descarto
             - si ya esta visitado: 
                 + si tiene un costo peor -> lo saco de visitados y pongo el nuevo en la frontera
-                + si notiene un costo peor -> lo descarto
+                + si no tiene un costo peor -> lo descarto
             - sino lo agrego a la frontera como un nodo nuevo
 */
 agregar([]):-!.
@@ -124,8 +111,11 @@ agregar([nodo(E,L,C,F)|RestoVecinos]):-
 
 /*
     generarVecinos(nodo(Estado,Camino,Costo),Vecinos)
-        dado un Nodo, genera todos aquellos vecinos con los que se relacione (con el operador opera)
-        y calcula el costo del nuevo nodo
+        Dado un Nodo:
+            - genera todos aquellos vecinos potenciales que sean sucesores del Estado 
+            - calcula el costo del nuevo nodo
+            - calcula la heuristica para el nuevo Estado
+            - calcula la F = Costo + Heuristica para el nuevo Estado
 */
 generarVecinos(nodo(EstadoActual,Camino,CostoViejo,_Fn),Vecinos):-
     findall(nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva), 
@@ -136,6 +126,46 @@ generarVecinos(nodo(EstadoActual,Camino,CostoViejo,_Fn),Vecinos):-
             FNueva is CostoNuevo + HeuristicaNueva
         ), 
         Vecinos).
+
+/*
+    esMeta(+Estado) 
+        comprueba que Estado sea una meta
+*/
+esMeta([[Fila,Columna],_,[[p,_]|_]]):-meta([Fila,Columna]).
+
+/*      ACA TERMINAN LOS PREDICADOS CORRESPONDIESTES AL ESQUELETO DEL A*     */
+/*************************************************************************************************************/
+
+agregarTuplasPalaMeta(Metas):-
+    agregarMetas(Metas),
+    findall(
+        tupla([FilaPala,ColumnaPala],[FilaMeta,ColumnaMeta],Distancia),
+        (
+            estaEn([p,_],[FilaPala,ColumnaPala]),
+            meta([FilaMeta,ColumnaMeta]),
+            Distancia is abs(FilaPala - FilaMeta) + abs(ColumnaPala - ColumnaMeta)
+        ),
+        Tuplas),
+    agregarTuplas(Tuplas).
+
+agregarMetas([]):-!.
+agregarMetas([Meta|RestoMetas]):-
+    celda(Meta,firme),
+    \+estaEn([o,_,_],Meta),!,
+    assertz(meta(Meta)),
+    agregarMetas(RestoMetas).
+agregarMetas([Meta|RestoMetas]):-
+    celda(Meta,resbaladizo),
+    \+estaEn([o,_,_],Meta),!,
+    assertz(meta(Meta)),
+    agregarMetas(RestoMetas).
+agregarMetas([_|RestoMetas]):-
+    agregarMetas(RestoMetas).
+
+agregarTuplas([]):-!.
+agregarTuplas([Tupla|RestoTuplas]):-
+    assertz(Tupla),
+    agregarTuplas(RestoTuplas).
 
 buscarHeuristica([[Fila,Columna],_,[[p,_]|_]],Heuristica):-!,
     buscarMenorMeta([Fila,Columna],Heuristica).
@@ -160,8 +190,6 @@ buscarMenorMetaPala([Fila,Columna],MenorHeuristica):-
         HeuristicaOtra is abs(Fila - FilPalaOtra) + abs(Columna - ColPalaOtra) + DistanciaOtra,
         MenorHeuristica > HeuristicaOtra
     )),!.
-
-esMeta([[Fila,Columna],_,[[p,_]|_]]):-meta([Fila,Columna]).
 
 eliminar([l,_,_],[],[]):-!.
 eliminar([l,NombreLlave,Accesos],[[l,NombreLlave,Accesos]|Resto],Resto):-!.
