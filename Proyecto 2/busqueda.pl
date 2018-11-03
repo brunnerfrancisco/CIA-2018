@@ -1,13 +1,14 @@
-:-consult('CIA2018-Proyecto2-BusquedaInformada-Prolog/islaExample.pl').
+%:-consult('CIA2018-Proyecto2-BusquedaInformada-Prolog/islaExample.pl').
 :-consult('sucesores.pl').
-%:-consult('mapa_1.pl').
+:-consult('mapa_1.pl').
+%:-consult('mapa_2.pl').
 /*
-    Defino los predicados dinamicos a ser utilizados
+    Se definen los predicados dinamicos a ser utilizados
 */
 :-dynamic frontera/1, visitado/1, tupla/3, meta/1.
 
 /*
-    Activo este flag para que a la hora de hacer las consultas por la consola
+    flag para que a la hora de hacer las consultas por la consola
         muestre TODOS los elementos de las listas
 */
 :-set_prolog_flag(answer_write_options,[max_depth(0)]).
@@ -16,7 +17,7 @@
 
 /*
     buscar_plan(+EstadoInicial,+Metas,-Destino,-Plan,-Costo)
-        busca una secuencia de operadores tal que aplicados al estado inicial,
+        Busca una secuencia de acciones tal que aplicados al estado inicial,
         llega a un estado donde la posicion es una meta (Destino) 
         y el costo asociado a esa secuencia de operadores
         La busqueda se realiza aplicando el metodo A*
@@ -26,16 +27,36 @@ buscar_plan(EstadoInicial,Metas,Destino,Plan,Costo):-
     retractall(visitado(_)),
     retractall(tupla(_,_,_)),
     retractall(meta(_)),
+    EstadoInicial = [_,_,[]],
     agregarTuplasPalaMeta(Metas),
     buscarHeuristica(EstadoInicial,Heuristica),
     assert(frontera(nodo(EstadoInicial,[],0,Heuristica))),
     buscarAE(Destino,Plan,Costo),!.
+buscar_plan([_,_,[_]],_,_,_,_):-!,
+    nl,write('La Lista de Posesiones del Estado Inicial debe estar vacia'),nl,
+    fail.
 buscar_plan(_,_,_,_,_):-
     nl,write('No es posible hallar un plan'),nl,
     fail.
 
 /*
-
+    buscarAE(Destino,Solucion,Costo)
+        Este predicado implementa el metodo de busqueda A*
+            Considerciones:
+                Tanto la Frontera como el control de visitados se manipulan
+                utilizando predicados dinámicos.
+            Caso Base:
+                Se Selecciona un nodo de la frontera
+                El nodo seleccionodado corresponde a un Estado Meta
+                Destino <- Posicion del Estado Meta
+                Solucion <- Lista de acciones asociado al camino de la busqueda 
+                    desde el Estado Inicial hasta el Estado Meta
+                Costo <- Costo asociado al camino luego de aplicar el camino de acciones
+            Caso Recursivo:
+                Se selecciona un nodo de la frontera
+                El Nodo seleccionado NO corresponde a un Estado Meta
+                Se generan los Potenciales Vecinos del Estado asociado al Nodo
+                Se agregan los Potenciales Vecinos a la Frontera haciendo el control de visitados.
 */
 buscarAE(Destino,Solucion,Costo):-
     seleccionar(nodo(Estado,Camino,Costo,_)),
@@ -44,7 +65,6 @@ buscarAE(Destino,Solucion,Costo):-
     reverse(Camino,Solucion).
 buscarAE(Destino,Solucion,Costo):-
     seleccionar(Nodo),
-    write(Nodo),nl,nl,
     assertz(visitado(Nodo)),
     retract(frontera(Nodo)),
     generarVecinos(Nodo,Vecinos),
@@ -53,9 +73,8 @@ buscarAE(Destino,Solucion,Costo):-
 
 /*
     seleccionar(Nodo):
-        selecciona un nodo de la frontera, es decir busca el Nodo cuya F sea menor
+        selecciona un nodo de la frontera, es decir busca el Nodo cuya F(Nodo) sea menor
         entre los hechos dinamicos correspondientes a la frontera
-        agrega el nodo a visitados.
 */
 seleccionar(nodo(Estado,Camino,Costo,Fn)):-
     buscarMenorNodoEnFrontera(nodo(Estado,Camino,Costo,Fn)),!.
@@ -75,14 +94,15 @@ buscarMenorNodoEnFrontera(nodo(E,L,C,MenorF)):-
     agregar(ListaDeVecinos)
         agrega los Nodos de ListaDeVecinos al final de la frontera
         (con assertz(frontera(Nodo)) agrega los hechos como ultimos hechos del programa)
-        Control De Ciclos:
-            - si ya esta en la frontera: 
-                + si tiene un costo peor -> lo reemplazo
-                + si no tiene un costo peor -> lo descarto
-            - si ya esta visitado: 
-                + si tiene un costo peor -> lo saco de visitados y pongo el nuevo en la frontera
-                + si no tiene un costo peor -> lo descarto
-            - sino lo agrego a la frontera como un nodo nuevo
+        Control De Visitados:
+            Para cada NodoVecino en ListaDeVecinos
+                - Si existe un NodoFrontera cuyo EstadoNF ya esta en la frontera: 
+                    + si tiene un costo peor -> lo reemplazo
+                    + si no tiene un costo peor -> lo descarto
+                - Si ya esta visitado: 
+                    + si tiene un costo peor -> lo saco de visitados y pongo el nuevo en la frontera
+                    + si no tiene un costo peor -> lo descarto
+                - En otro caso se agrega NodoVecino a la frontera como un nodo nuevo
 */
 agregar([]):-!.
 agregar([nodo(E,L,C,F)|RestoVecinos]):-
@@ -118,7 +138,8 @@ agregar([nodo(E,L,C,F)|RestoVecinos]):-
             - calcula la F = Costo + Heuristica para el nuevo Estado
 */
 generarVecinos(nodo(EstadoActual,Camino,CostoViejo,_Fn),Vecinos):-
-    findall(nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva), 
+    findall(
+        nodo(EstadoNuevo,[Operador|Camino],CostoNuevo,FNueva), 
         (
             sucesor(EstadoActual,EstadoNuevo,Operador,CostoActual),
             CostoNuevo is CostoActual + CostoViejo, 
@@ -136,6 +157,13 @@ esMeta([[Fila,Columna],_,[[p,_]|_]]):-meta([Fila,Columna]).
 /*      ACA TERMINAN LOS PREDICADOS CORRESPONDIESTES AL ESQUELETO DEL A*     */
 /*************************************************************************************************************/
 
+/*
+    agregarTuplasPalaMeta(Metas).
+        Se agregan las Metas como hechos dinámicos 
+            (haciendo un chequeo previo para saber si no correponden a celdas prohibidas)
+        Se realiza un producto cartesiano entre palas y metas y se les asocia la distancia entre cada par
+        Por último se agregar las Tuplas como hechos dinámicos
+*/
 agregarTuplasPalaMeta(Metas):-
     agregarMetas(Metas),
     findall(
@@ -191,6 +219,11 @@ buscarMenorMetaPala([Fila,Columna],MenorHeuristica):-
         MenorHeuristica > HeuristicaOtra
     )),!.
 
+/*
+    eliminar(LLave,+ListaPosesiones,-NuevaListaPosesiones).
+        Elimina la LLave de la Lista de Posesiones y
+        en NuevaListaPosesiones se devuelve ListaPosesiones sin la LLave
+*/
 eliminar([l,_,_],[],[]):-!.
 eliminar([l,NombreLlave,Accesos],[[l,NombreLlave,Accesos]|Resto],Resto):-!.
 eliminar([l,NombreLlave,Accesos],[[l,NombreLlave2,Accesos2]|Resto],RestoAux):-

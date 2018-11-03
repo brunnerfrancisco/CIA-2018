@@ -1,4 +1,8 @@
 
+/*************************************************************************************************************/
+/***********************************************   avanzar   *************************************************/
+/*************************************************************************************************************/
+
 /*
     avanzar - condiciones
         + existe la posicion siguiente
@@ -337,6 +341,10 @@ sucesor([[FilAct,ColAct],e,Llaves],[[FilSig,ColSig],e,LlavesNuevo],avanzar,2):-
     eliminar([l,NombreL,AccesosL],Llaves,LlavesAux),
     LlavesNuevo = [[l,NombreL,AccesosLNuevo]|LlavesAux].
 
+/*************************************************************************************************************/
+/**************************************************GIRAR******************************************************/
+/*************************************************************************************************************/
+
 sucesor([Posicion,n,Posesiones],[Posicion,o,Posesiones],girar(o),1).
 
 sucesor([Posicion,n,Posesiones],[Posicion,s,Posesiones],girar(s),2).
@@ -361,9 +369,10 @@ sucesor([Posicion,e,Posesiones],[Posicion,o,Posesiones],girar(o),2).
 
 sucesor([Posicion,e,Posesiones],[Posicion,s,Posesiones],girar(s),1).
 
-/*
-    saltar_lava
-*/
+/*************************************************************************************************************/
+/********************************************   saltar_lava   ************************************************/
+/*************************************************************************************************************/
+
 sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_lava,3):-
     FilSig is FilAct - 2,
     ColSig is ColAct,
@@ -372,6 +381,8 @@ sucesor([[FilAct,ColAct],n,Posesiones],[[FilSig,ColSig],n,Posesiones],saltar_lav
     celda([FilInt,ColInt],lava),
     celda([FilAct,ColAct],firme),
     celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilAct,ColAct]),
+    \+estaEn([l,_,_],[FilAct,ColAct]),
     \+estaEn([p,_],[FilSig,ColSig]),
     \+estaEn([l,_,_],[FilSig,ColSig]),
     \+estaEn([o,_,_],[FilSig,ColSig]),
@@ -384,6 +395,8 @@ sucesor([[FilAct,ColAct],o,Posesiones],[[FilSig,ColSig],o,Posesiones],saltar_lav
     celda([FilInt,ColInt],lava),
     celda([FilAct,ColAct],firme),
     celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilAct,ColAct]),
+    \+estaEn([l,_,_],[FilAct,ColAct]),
     \+estaEn([p,_],[FilSig,ColSig]),
     \+estaEn([l,_,_],[FilSig,ColSig]),
     \+estaEn([o,_,_],[FilSig,ColSig]),
@@ -396,6 +409,8 @@ sucesor([[FilAct,ColAct],s,Posesiones],[[FilSig,ColSig],s,Posesiones],saltar_lav
     celda([FilInt,ColInt],lava),
     celda([FilAct,ColAct],firme),
     celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilAct,ColAct]),
+    \+estaEn([l,_,_],[FilAct,ColAct]),
     \+estaEn([p,_],[FilSig,ColSig]),
     \+estaEn([l,_,_],[FilSig,ColSig]),
     \+estaEn([o,_,_],[FilSig,ColSig]),
@@ -408,10 +423,16 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_lav
     celda([FilInt,ColInt],lava),
     celda([FilAct,ColAct],firme),
     celda([FilSig,ColSig],firme),
+    \+estaEn([p,_],[FilAct,ColAct]),
+    \+estaEn([l,_,_],[FilAct,ColAct]),
     \+estaEn([p,_],[FilSig,ColSig]),
     \+estaEn([l,_,_],[FilSig,ColSig]),
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
+
+/*************************************************************************************************************/
+/******************************************   saltar_obstaculo   *********************************************/
+/*************************************************************************************************************/
 
 /*
     saltar_obstaculo con suelo destino firme
@@ -501,6 +522,11 @@ sucesor([[FilAct,ColAct],e,Posesiones],[[FilSig,ColSig],e,Posesiones],saltar_obs
     \+estaEn([o,_,_],[FilSig,ColSig]),
     \+estaEn([r,_,_],[FilSig,ColSig]).
 
+
+/*************************************************************************************************************/
+/******************************************   levantar_llave   ***********************************************/
+/*************************************************************************************************************/
+
 /*
     levantar_llave con pala
 */
@@ -516,6 +542,11 @@ sucesor([Posicion,Dir,Posesiones],[Posicion,Dir,[[l,NombreL,Accesos]|Posesiones]
     levantar_llave([l,NombreL,Accesos]),0):-
     estaEn([l,NombreL,Accesos],Posicion),
     not(member([l,NombreL,_],Posesiones)).
+
+
+/*************************************************************************************************************/
+/******************************************   levantar_pala   ************************************************/
+/*************************************************************************************************************/
 
 /*
     levantar_pala
