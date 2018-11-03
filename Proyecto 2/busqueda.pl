@@ -47,7 +47,7 @@ buscar_plan(_,_,_,_,_):-
                 utilizando predicados dinámicos.
             Caso Base:
                 Se Selecciona un nodo de la frontera
-                El nodo seleccionodado corresponde a un Estado Meta
+                El nodo seleccionado corresponde a un Estado Meta
                 Destino <- Posicion del Estado Meta
                 Solucion <- Lista de acciones asociado al camino de la busqueda 
                     desde el Estado Inicial hasta el Estado Meta
@@ -176,6 +176,11 @@ agregarTuplasPalaMeta(Metas):-
         Tuplas),
     agregarTuplas(Tuplas).
 
+/*
+    agregarMetas(+ListaDeMetas).
+        Agrega como hechos dinámicos las metas de la ListaDeMetas aquellas metas que sean alcanzables
+        es decir que sea una posicion valida de la isla, que no haya lava y que no haya obstaculos
+*/
 agregarMetas([]):-!.
 agregarMetas([Meta|RestoMetas]):-
     celda(Meta,firme),
@@ -190,17 +195,28 @@ agregarMetas([Meta|RestoMetas]):-
 agregarMetas([_|RestoMetas]):-
     agregarMetas(RestoMetas).
 
+/*
+    agregarTuplas(+ListaDeTuplas).
+        Agrega como hechos dinamicos las tuplas de la ListaDeTuplas
+*/
 agregarTuplas([]):-!.
 agregarTuplas([Tupla|RestoTuplas]):-
     assertz(Tupla),
     agregarTuplas(RestoTuplas).
 
+/*
+    buscarHeuristica(+Estado,-Heuristica).
+        Para el calculo de la heuristica se diferencia el caso en que el estado posea una pala
+            y el caso en que no posea la pala
+        En caso de tener la pala:
+            Retorna en Heuristica la menor distancia a una meta.
+        En caso de no tener la pala:
+            Retorna en Heuristica la menor distancia a una pala cuya distancia a una meta sea la menor.
+*/
 buscarHeuristica([[Fila,Columna],_,[[p,_]|_]],Heuristica):-!,
     buscarMenorMeta([Fila,Columna],Heuristica).
-
 buscarHeuristica([[Fila,Columna],_,_],Heuristica):-
     buscarMenorMetaPala([Fila,Columna],Heuristica).
-
 buscarMenorMeta([Fila,Columna],MenorHeuristica):-
     meta([FilaMeta,ColumnaMeta]),
     MenorHeuristica is abs(Fila - FilaMeta) + abs(Columna - ColumnaMeta),
@@ -209,7 +225,6 @@ buscarMenorMeta([Fila,Columna],MenorHeuristica):-
         HeuristicaOtra is abs(Fila - FilMetaOtra) + abs(Columna - ColMetaOtra),
         MenorHeuristica > HeuristicaOtra
     )),!.
-
 buscarMenorMetaPala([Fila,Columna],MenorHeuristica):-
     tupla([FilPala,ColPala],[_FilMeta,_ColMeta],DistanciaPalaMeta),
     MenorHeuristica is abs(Fila - FilPala) + abs(Columna - ColPala) + DistanciaPalaMeta,
