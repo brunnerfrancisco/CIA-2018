@@ -1,7 +1,6 @@
 %:-consult('CIA2018-Proyecto2-BusquedaInformada-Prolog/islaExample.pl').
 :-consult('sucesores.pl').
-:-consult('mapa_1.pl').
-%:-consult('mapa_2.pl').
+:-consult('mapa.pl').
 /*
     Se definen los predicados dinamicos a ser utilizados
 */
